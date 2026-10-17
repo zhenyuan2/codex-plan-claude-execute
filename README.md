@@ -1,111 +1,147 @@
 # codex-plan-claude-execute
 
-**Codex 规划 → Claude Code 实现 → Codex 验收与复核。**
+**Codex plans → Claude Code implements → Codex verifies.**
 
-将明确的实现任务交给 Claude Code CLI，保留独立验收、有限重试和完整运行日志。使用 Claude Code 当前配置的默认模型，也可显式指定模型。
+An installable Codex skill for delegating implementation to Claude Code CLI, with independent acceptance checks, bounded repair attempts, and per-attempt logs. It uses Claude Code's configured default model unless you explicitly select one.
 
-本包供 **Codex** 加载，不要安装到 Claude Code 中让它调用自身。
+Install this skill into **Codex**, not Claude Code: Codex orchestrates the task and Claude Code executes it.
 
-## 环境要求
+## Quick install from GitHub
 
-- macOS 或 Linux，Python 3.8+、Bash。
-- 已安装并登录 Claude Code；`claude --version` 可用。执行时需要模型服务网络访问和 Claude 会话目录写入权限。
-- Codex；插件安装方式还要求 CLI 提供 `codex plugin` 命令。没有插件命令可用直接安装方式。
-- 运行器支持的 Claude 参数以 `scripts/run-claude.sh --help` 为准；不会自动安装依赖或修改登录配置。
-
-## 安装
-
-以下命令均在本仓库根目录执行。两种方式任选一种，避免同一 skill 被重复发现。
-
-### 方式一：直接安装 skill
+Add the marketplace, install the plugin, and verify that it is listed:
 
 ```bash
+codex plugin marketplace add zhenyuan2/codex-plan-claude-execute
+codex plugin add codex-plan-claude-execute@codex-plan-claude-execute-marketplace
+codex plugin list
+```
+
+No manual clone is required for this method. Your Codex CLI must support `codex plugin`. If it does not, use the direct skill installation below.
+
+Choose either plugin installation or direct installation to avoid duplicate skill discovery. If switching from an existing direct installation, back it up and move it outside the skill search directories first.
+
+## Requirements
+
+- macOS or Linux, Python 3.8+, and Bash.
+- Claude Code installed and authenticated; `claude --version` should work.
+- Network access to the configured model service and permission for Claude Code to write its session state.
+- Codex, with plugin commands available if using marketplace installation.
+
+The installer does not install dependencies or change authentication settings.
+
+## Usage
+
+In Codex, ask:
+
+```text
+Use $codex-plan-claude-execute to inspect this project and make a plan,
+delegate implementation to Claude Code, then verify the result.
+
+Task: Add pagination to the existing search API and cover it with relevant tests.
+```
+
+### Workflow
+
+1. **Plan:** Codex reads repository instructions and existing changes, then writes a self-contained plan with completion criteria and one acceptance block.
+2. **Implement:** Claude Code implements the plan and reports whether it is done, partial, or blocked.
+3. **Validate and repair:** The runner executes acceptance checks. Only failed acceptance after a completed implementation triggers automatic repair, within the configured limits.
+4. **Review:** Codex inspects the actual changes and validation evidence before declaring the task complete.
+
+Existing execution authorization is respected. Material scope changes or additional permissions still require explicit handling.
+
+## Alternative installation methods
+
+### Direct skill installation
+
+Clone the repository and run the installer:
+
+```bash
+git clone https://github.com/zhenyuan2/codex-plan-claude-execute.git
+cd codex-plan-claude-execute
 python3 install.py
 ```
 
-默认安装到 `~/.agents/skills/codex-plan-claude-execute/`。已有同名目录时默认拒绝覆盖。更新已有安装：
+The default destination is `~/.agents/skills/codex-plan-claude-execute/`. Existing installations are not overwritten by default.
+
+To replace an existing installation and back it up first:
 
 ```bash
 python3 install.py --replace
 ```
 
-旧版本自动备份到 skills 上一级目录的 `.skill-backups/`，安装器会打印具体路径。
+Backups are stored in `.skill-backups/` next to the parent skills directory. The installer prints the exact backup path.
 
-也可以安装到项目内，`--dest` 指向完整的 skill 目录：
+To install into a specific project, provide the full destination skill directory:
 
 ```bash
 python3 install.py --dest /path/to/project/.agents/skills/codex-plan-claude-execute
 ```
 
-安装只是复制文件，不调用模型、不修改 Codex 配置。
+Direct installation only copies files. It does not invoke a model or modify Codex configuration.
 
-### 方式二：作为本地插件市场安装
+### Local marketplace installation
+
+From the cloned repository root:
 
 ```bash
 codex plugin marketplace add .
 codex plugin add codex-plan-claude-execute@codex-plan-claude-execute-marketplace
-codex plugin list
 ```
 
-这种方式使用仓库的 `.claude-plugin/marketplace.json` 和插件清单。目录名沿用兼容格式；插件的目标宿主仍然是 Codex。
+The package uses the compatible `.claude-plugin/marketplace.json` and plugin manifest structure. Codex remains the intended host.
 
-从 GitHub 安装：
+## Runner options
 
-```bash
-codex plugin marketplace add zhenyuan2/codex-plan-claude-execute
-codex plugin add codex-plan-claude-execute@codex-plan-claude-execute-marketplace
-```
-
-已有直接安装版本时，请先保留备份并移出 skills 搜索目录，再选择插件安装，避免重复。
-
-## 使用
-
-在 Codex 中输入：
+The runner is located at:
 
 ```text
-使用 $codex-plan-claude-execute，先分析当前项目并制定计划，
-然后交给 Claude Code 实现，最后由 Codex 验证结果。
-任务：为现有搜索接口增加分页，并补充相关测试。
+plugins/codex-plan-claude-execute/skills/codex-plan-claude-execute/scripts/run-claude.sh
 ```
 
-流程：
-
-1. Codex 读取项目规则和现有修改，生成一份有效计划与验收块。
-2. Claude Code 根据计划实现，报告完成、部分完成或阻塞。
-3. 运行器执行验收，仅对已完成实现后的验收失败进行有限重试。
-4. Codex 检查实际变更、测试和完成标准，给出最终结论。
-
-已有执行授权时不重复要求确认；新增范围或权限需求仍需明确处理。
-
-## 参数与日志
-
-运行器位于 `plugins/codex-plan-claude-execute/skills/codex-plan-claude-execute/scripts/`。
-
-| 参数 | 含义 |
+| Option | Purpose |
 |---|---|
-| `--repo PATH` | 明确执行目录 |
-| `--attempts N` | 本次调用最多模型调用次数，默认 3 |
-| `--max-turns N` | 每次 Claude 调用轮次上限，默认 60 |
-| `--timeout SECONDS` | 模型与验收总运行时间，默认 1800 秒 |
-| `--max-budget USD` | 本次调用内累计 CLI 报告费用预算，可选 |
-| `--model NAME` | 指定 Claude 模型，可选 |
-| `--allowed-tool RULE` | 额外自动授权规则，可重复指定 |
+| `--repo PATH` | Explicit execution directory |
+| `--attempts N` | Maximum model calls per runner invocation; default: 3 |
+| `--max-turns N` | Maximum turns per Claude call; default: 60 |
+| `--timeout SECONDS` | Total model and acceptance runtime; default: 1800 seconds |
+| `--max-budget USD` | Optional cumulative CLI-reported cost budget per invocation |
+| `--model NAME` | Optional Claude model override |
+| `--allowed-tool RULE` | Additional auto-approved tool rule; repeatable |
 
-`--max-budget` 依赖 Claude 的 `total_cost_usd`，不是实际账单硬上限。当前按每次调用费用累加；`--resume` 后费用字段语义尚未做真实模型验证，若返回会话累计费用可能提前停止。不适合当作精确财务控制。
+### Budget accounting
 
-默认自动授权文件工具；命令授权按任务添加。工具授权不是系统沙箱，也不自动允许推送、部署等外部操作。
+`--max-budget` uses Claude's `total_cost_usd`; it is not a hard billing cap. The runner currently adds the cost reported by each call. Cost reporting after `--resume` has not been verified against a real model session: if the CLI returns cumulative session cost, the runner may stop early. Do not use this as precise financial accounting.
 
-日志在项目 `.plans/runs/<唯一运行目录>/`，含计划快照、Git 基线、逐次模型/验收输出及汇总。退出码 `0` 仅表示自动验收通过，仍需 Codex 复核；`1` 表示停止或失败，`2` 表示参数、环境或协议错误。
+### Permissions
 
-## 检查运行入口
+File tools are auto-approved by default. Add command permissions only as needed for the task. Tool approval is not an operating-system sandbox and does not implicitly authorize pushing code, deploying, or other external actions.
+
+## Logs and exit codes
+
+Runs are saved under the project's `.plans/runs/<unique-run>/` directory, including:
+
+- Plan and acceptance snapshots.
+- A Git baseline when available.
+- Per-attempt model output and acceptance logs.
+- A machine-readable summary.
+
+| Exit code | Meaning |
+|---|---|
+| `0` | Automated acceptance passed; independent Codex review is still required |
+| `1` | Execution stopped, timed out, was blocked, or exhausted repair attempts |
+| `2` | Argument, environment, plan, or output-protocol error |
+
+## Check the runner
+
+From the repository root:
 
 ```bash
 bash plugins/codex-plan-claude-execute/skills/codex-plan-claude-execute/scripts/run-claude.sh --help
 ```
 
-开发测试文件仅保留在本地，不纳入 Git 或 GitHub 分发。运行 skill 不依赖测试文件。当前已做离线验证，尚未完成真实模型端到端验证。
+Development tests are kept locally and excluded from Git distribution. They are not required to run the skill. Offline checks have been completed; real-model end-to-end validation has not.
 
-## 目录
+## Repository structure
 
 ```text
 .claude-plugin/marketplace.json
@@ -113,30 +149,30 @@ plugins/codex-plan-claude-execute/
   .claude-plugin/plugin.json
   skills/codex-plan-claude-execute/
     SKILL.md
+    LICENSE
     agents/openai.yaml
     references/
     scripts/
 install.py
+LICENSE
 README.md
 ```
 
-## 卸载
+## Uninstall
 
-直接安装：确认实际安装位置后，将对应 `codex-plan-claude-execute` 目录移出 skills 目录。
+For a direct installation, move the installed `codex-plan-claude-execute` directory outside the skill search directories.
 
-插件安装：
+For a plugin installation:
 
 ```bash
 codex plugin remove codex-plan-claude-execute@codex-plan-claude-execute-marketplace
 ```
 
-## 参考
+## References
 
-- [cc-skill-codex](https://github.com/wywwzjj/cc-skill-codex)：参考其插件市场与 skill 分层结构；本包只包含 Codex → Claude Code 的规划执行流程。
-- [OpenAI 插件文档](https://developers.openai.com/codex/plugins/)
+- [cc-skill-codex](https://github.com/wywwzjj/cc-skill-codex) — inspiration for the marketplace/plugin/skill packaging structure. This project implements only the Codex → Claude Code planning and execution workflow.
+- [OpenAI plugin documentation](https://developers.openai.com/codex/plugins/).
 
-## 许可证
+## License
 
-本项目采用 [MIT 许可证](LICENSE)。
-
-仓库：https://github.com/zhenyuan2/codex-plan-claude-execute
+[MIT](LICENSE).
