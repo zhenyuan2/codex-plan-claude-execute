@@ -35,7 +35,7 @@ cd codex-plan-claude-execute
 python3 install.py
 ```
 
-The default destination is `~/.agents/skills/codex-plan-claude-execute/`. To update an existing installation, use `python3 install.py --replace`; the installer backs up the old version and prints its location.
+The default destination is `~/.agents/skills/codex-plan-claude-execute/`. See [Updating](#updating) to replace an existing installation.
 
 To install into a project:
 
@@ -48,6 +48,32 @@ Alternatively, register the cloned repository as a local marketplace with `codex
 When switching installation methods, move the previous installation outside the skill search directories first.
 
 </details>
+
+## Updating
+
+For the recommended GitHub marketplace installation:
+
+```bash
+codex plugin marketplace upgrade codex-plan-claude-execute-marketplace
+codex plugin list
+```
+
+This fetches the latest marketplace repository and refreshes its installed plugin cache, including the skill. To update all configured Git marketplaces, run `codex plugin marketplace upgrade` without a marketplace name.
+
+For a manual installation, run these commands from your cloned repository:
+
+```bash
+git pull --ff-only
+python3 install.py --replace
+```
+
+The installer backs up the previous skill and prints its location. If you originally used `--dest`, pass the same destination when updating:
+
+```bash
+python3 install.py --replace --dest /path/to/project/.agents/skills/codex-plan-claude-execute
+```
+
+Running `git pull` alone does not update a manually installed skill because the installed directory is a separate copy. After updating, start a new Codex session to load the updated skill.
 
 <details>
 <summary>Uninstall</summary>
@@ -67,8 +93,8 @@ For a manual installation, move the installed skill directory outside the skill 
 Ask Codex:
 
 ```text
-Use $codex-plan-claude-execute to add pagination to the search API.
-Have Claude Code implement the changes, then review and verify the result.
+Use $codex-plan-claude-execute to add a dark mode toggle to this website.
+Create a plan, have Claude Code implement it, then review and test the changes yourself.
 ```
 
 Codex prepares the plan, invokes Claude Code, and checks the result. You do not need to run the execution script yourself.
