@@ -85,17 +85,3 @@ Existing authorization is respected. Additional permissions or material scope ch
 ## Advanced usage
 
 See the [runner reference](docs/runner.md) for direct execution, model and permission options, budgets, logs, and troubleshooting.
-
-## Limitations
-
-- Offline checks have passed; real-model end-to-end validation is still pending.
-- Budget enforcement depends on CLI-reported costs. Reporting after session resume is not yet verified; see [budget accounting](docs/runner.md#budget-accounting).
-- Tool approvals are not a system sandbox. Execution remains subject to the host environment's restrictions.
-
-## License
-
-[MIT](LICENSE).
-
-## Acknowledgments
-
-The marketplace packaging structure was inspired by [cc-skill-codex](https://github.com/wywwzjj/cc-skill-codex).
