@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .plans/
+/AGETNS.md
 
 # Local-only tests
 tests/

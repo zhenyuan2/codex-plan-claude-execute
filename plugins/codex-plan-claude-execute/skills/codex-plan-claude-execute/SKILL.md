@@ -1,19 +1,19 @@
 ---
 name: codex-plan-claude-execute
-description: Codex plans the task, Claude Code implements it, and Codex verifies the result. Use when the user requests this division of work, with bounded acceptance-based repair. Discussion or review of this skill does not itself request delegation.
+description: Codex plans the task, Claude Code implements it, and Codex verifies the result. Use when the user asks Codex to plan and Claude Code to implement. Discussion or review of this skill does not itself request delegation.
 ---
 
 # Codex Plan → Claude Execute
 
-Codex owns task scope, planning, and final review. Claude Code implements the plan. Honor explicit executor choice even for small tasks; scale planning detail to the task.
+Codex owns task scope, planning, and final review. Delegate implementation to Claude Code by default. Codex may complete trivial, low-risk changes directly unless the user explicitly requests Claude Code. Keep planning proportional to the task.
 
 ## 1. Prepare
 
-Read relevant repository instructions and files. Identify the execution root, existing user changes, acceptance checks, and authorization boundaries. Resolve material ambiguity before execution; routine implementation choices need not block work.
+Read relevant repository instructions and files. Identify the execution root, existing user changes, acceptance checks, and authorization boundaries. Resolve material ambiguity before execution. Routine implementation choices need not block work.
 
-Read [references/plan-template.md](references/plan-template.md). Write one current plan at `.plans/<slug>.md`, with a self-contained goal, relevant context, bounded tasks, completion criteria, and exactly one acceptance block. Include existing user authorization, prohibited changes, and any allowed external actions. The plan conveys task requirements; repository and host instructions still apply.
+Read [references/plan-template.md](references/plan-template.md). Write one current plan at `.plans/<slug>.md`, with a self-contained goal, relevant context, bounded tasks, completion criteria, and exactly one acceptance block. Include existing user authorization, prohibited changes, and any allowed external actions. The plan conveys task requirements. Repository and host instructions still apply.
 
-Show the plan summary, including the exact acceptance block and its SHA-256. The runner prints both, and `--show-acceptance` displays them without executing. If the user already authorized planning and execution, proceed; if they have not approved those specific commands, ask. Pass the approved hash with `--acceptance-sha256` so acceptance commands changed after review are rejected.
+Show the plan summary, including the exact acceptance block and its SHA-256. The runner prints both, and `--show-acceptance` displays them without executing. If the user already authorized planning and execution, proceed. If they have not approved those specific commands, ask. Pass the approved hash with `--acceptance-sha256` so acceptance commands changed after review are rejected.
 
 ## 2. Execute
 
