@@ -1,6 +1,6 @@
 # Independent Codex review
 
-1. Read the run's `summary.json`, per-attempt report, and acceptance stdout/stderr. Exit 0 means automated acceptance passed, not that the task is complete.
+1. Read the run's `summary.json`, per-attempt report, acceptance stdout/stderr, and acceptance SHA-256. Exit 0 means automated acceptance passed, not that the task is complete. Confirm the hash matches the commands the user approved; treat a mismatch as a blocker.
 2. Compare actual changes with the saved `before.*` baseline. Inspect unstaged and staged diffs and the contents of new files. Preserve pre-existing user changes; do not attribute the entire working tree to Claude. For non-Git work, arrange relevant file copies or hashes before execution and compare them afterward.
 3. Check each completion criterion, out-of-scope changes, deleted/skipped/weakened tests, and altered validation tooling. Review the implementation, not only the report or diff statistics. A snapshot hash is provenance, not isolation from an executor that can write files.
 4. Assess validation evidence. Re-run targeted checks when changes, uncertain evidence, or significant risk justify it. Do not blindly repeat expensive or side-effectful commands. If acceptance is not safe to repeat, correct the plan before invoking the runner.

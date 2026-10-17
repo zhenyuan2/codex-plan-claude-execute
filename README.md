@@ -77,11 +77,11 @@ Codex prepares the plan, invokes Claude Code, and checks the result. You do not 
 
 1. **Plan:** Codex reads project instructions and existing changes, then defines tasks and acceptance checks.
 2. **Execute:** Claude Code implements the plan and reports completion or blockers.
-3. **Validate:** The runner executes the checks and retries failed acceptance within the configured limits.
+3. **Validate:** The runner displays the acceptance commands and hash, executes them, and retries failed acceptance within the configured limits. Destructive-looking commands require explicit approval.
 4. **Review:** Codex inspects the changes and evidence before declaring the task complete.
 
-Existing authorization is respected. Additional permissions or material scope changes are handled explicitly.
+Existing authorization is respected. Claude Code starts with an explicit file-tool allowlist; additional command permissions are opt-in, and material scope changes are handled explicitly.
 
 ## Advanced usage
 
-See the [runner reference](docs/runner.md) for direct execution, model and permission options, cost reporting, logs, and troubleshooting.
+See the [runner reference](docs/runner.md) for direct execution, acceptance review and sandboxing, model and permission options, cost reporting, logs, and troubleshooting.

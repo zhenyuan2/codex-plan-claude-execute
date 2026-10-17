@@ -21,6 +21,8 @@ Keep one effective plan; prior runs preserve snapshots. Scale detail to task com
 ```bash
 # Runs once per completed attempt as a single bash -e -o pipefail script.
 # Commands must be safe to repeat and runnable from the execution root.
+# The runner prints this block and its SHA-256 before execution.
+# Destructive commands require --allow-dangerous-acceptance; prefer a maintained script.
 <meaningful validation commands>
 ```
 <!-- ACCEPTANCE:END -->
