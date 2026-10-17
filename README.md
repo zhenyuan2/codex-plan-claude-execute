@@ -84,4 +84,4 @@ Existing authorization is respected. Additional permissions or material scope ch
 
 ## Advanced usage
 
-See the [runner reference](docs/runner.md) for direct execution, model and permission options, budgets, logs, and troubleshooting.
+See the [runner reference](docs/runner.md) for direct execution, model and permission options, cost reporting, logs, and troubleshooting.

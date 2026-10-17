@@ -36,6 +36,16 @@ def positive_float(value):
     return number
 
 
+def cost_estimate(value):
+    """Return the CLI's reported cost if usable; otherwise record no estimate."""
+    if type(value) not in (int, float) or value < 0:
+        return None
+    try:
+        return value if math.isfinite(value) else None
+    except OverflowError:
+        return None
+
+
 def acceptance(text):
     lines = text.splitlines()
     begin = [i for i, line in enumerate(lines) if line.strip() == '<!-- ACCEPTANCE:BEGIN -->']
@@ -80,6 +90,24 @@ def report_object(result):
     return report
 
 
+def terminate(proc):
+    """Best-effort group termination; the process may already be gone."""
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(proc.pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            proc.wait(timeout=3)
+            return
+        except subprocess.TimeoutExpired:
+            continue
+    try:
+        proc.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 def run_process(cmd, cwd, stdout, stderr, deadline, env=None):
     remaining = deadline - time.monotonic()
     if remaining <= 0:
@@ -90,16 +118,7 @@ def run_process(cmd, cwd, stdout, stderr, deadline, env=None):
         try:
             return proc.wait(timeout=remaining)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
-            os.killpg(proc.pid, signal.SIGTERM)
-            try:
-                proc.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                pass
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            proc.wait()
+            terminate(proc)
             raise Stop('interrupted or total timeout exceeded')
 
 
@@ -110,19 +129,64 @@ def git_snapshot(root, destination, prefix):
             subprocess.run(['git', '-C', str(root)] + args, stdout=out, stderr=subprocess.DEVNULL, timeout=15)
 
 
+def gitignore_escape(text):
+    escaped = ''.join('\\' + ch if ch in '\\*?[' else ch for ch in text)
+    if escaped.endswith(' '):
+        escaped = escaped[:-1] + '\\ '
+    return escaped
+
+
+def git_exclude_artifacts(plan):
+    """Locally exclude the plan and run directory in the plan's Git repository."""
+    parent = plan.parent.resolve()
+    probe = subprocess.run(['git', '-C', str(parent), 'rev-parse', '--show-toplevel'],
+                           capture_output=True, text=True, timeout=15)
+    if probe.returncode != 0 or not probe.stdout.strip():
+        return None
+    top = Path(probe.stdout.strip()).resolve()
+    targets = [(parent, True)] if parent.name == '.plans' else [(plan.resolve(), False), (parent / 'runs', True)]
+    patterns = []
+    for target, is_dir in targets:
+        try:
+            relative = target.relative_to(top).as_posix()
+        except ValueError:
+            continue
+        if not relative or relative == '.':
+            continue
+        check = subprocess.run(['git', '-C', str(top), '--literal-pathspecs', 'check-ignore', '-q', '--no-index',
+                                '--', relative], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
+        if check.returncode == 0:
+            continue
+        patterns.append('/' + gitignore_escape(relative) + ('/' if is_dir else ''))
+    if not patterns:
+        return None
+    git_path = subprocess.run(['git', '-C', str(top), 'rev-parse', '--git-path', 'info/exclude'],
+                              capture_output=True, text=True, timeout=15)
+    if git_path.returncode != 0 or not git_path.stdout.strip():
+        return None
+    exclude = Path(git_path.stdout.strip())
+    if not exclude.is_absolute():
+        exclude = top / exclude
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    existing = exclude.read_text(encoding='utf-8', errors='replace') if exclude.exists() else ''
+    prefix = '' if not existing or existing.endswith('\n') else '\n'
+    with exclude.open('a', encoding='utf-8') as handle:
+        handle.write(prefix + '\n'.join(patterns) + '\n')
+    return ', '.join(patterns)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('plan', type=Path)
     parser.add_argument('--repo', type=Path, help='explicit execution root; recommended for nested projects')
     parser.add_argument('--attempts', type=positive_int, default=3, help='total model calls, including repairs')
     parser.add_argument('--max-turns', type=positive_int, default=60)
-    parser.add_argument('--max-budget', type=positive_float, help='total reported USD budget across this invocation')
     parser.add_argument('--timeout', type=positive_float, default=1800, help='total execution seconds')
     parser.add_argument('--model')
     parser.add_argument('--allowed-tool', action='append', default=[], help='additional auto-approved tool rule; repeatable')
     args = parser.parse_args()
     run_dir = None
-    summary = {'status': 'environment_error', 'attempts': 0, 'reported_cost_usd': 0, 'review': 'pending'}
+    summary = {'status': 'environment_error', 'attempts': 0, 'reported_costs_usd': [], 'review': 'pending'}
     try:
         plan = args.plan.resolve(strict=True)
         content = plan.read_text()
@@ -136,6 +200,14 @@ def main():
             root = Path(probe.stdout.strip()) if probe and probe.returncode == 0 else (plan.parent.parent if plan.parent.name == '.plans' else plan.parent)
         if not root.is_dir():
             raise ValueError('execution root is not a directory')
+        if shutil.which('git'):
+            try:
+                excluded = git_exclude_artifacts(plan)
+            except (OSError, subprocess.SubprocessError) as exc:
+                print('warning: could not exclude plan artifacts from Git:', exc, file=sys.stderr, flush=True)
+            else:
+                if excluded:
+                    print('Git exclude:', excluded, flush=True)
         runs = plan.parent / 'runs'
         runs.mkdir(exist_ok=True)
         run_dir = Path(tempfile.mkdtemp(prefix=plan.stem + '-', dir=runs))
@@ -173,24 +245,13 @@ def main():
                 cmd += ['--model', args.model]
             if session:
                 cmd += ['--resume', session]
-            if args.max_budget:
-                remaining = args.max_budget - summary['reported_cost_usd']
-                if remaining <= 0:
-                    raise Stop('total reported budget exhausted')
-                cmd += ['--max-budget-usd', str(remaining)]
             summary['attempts'] = attempt
             print('Attempt', attempt, '/', args.attempts, flush=True)
             rc = run_process(cmd, root, folder / 'claude.json', folder / 'claude.stderr', deadline, env)
             if rc:
                 raise Stop('Claude process failed (exit %s); inspect stderr. No automatic retry.' % rc)
             data = result_object((folder / 'claude.json').read_text())
-            cost = data.get('total_cost_usd')
-            if cost is not None:
-                if type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
-                    raise ValueError('invalid reported cost')
-                summary['reported_cost_usd'] += cost
-            elif args.max_budget:
-                raise Stop('cost missing; cannot safely continue within total reported budget')
+            summary['reported_costs_usd'].append(cost_estimate(data.get('total_cost_usd')))
             session = data.get('session_id')
             if session is not None and not isinstance(session, str):
                 raise ValueError('invalid session_id')

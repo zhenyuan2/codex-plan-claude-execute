@@ -34,7 +34,6 @@ Use the [plan template](../plugins/codex-plan-claude-execute/skills/codex-plan-c
 | `--attempts N` | Maximum model calls per runner invocation | 3 |
 | `--max-turns N` | Maximum turns per Claude call | 60 |
 | `--timeout SECONDS` | Total model and acceptance runtime | 1800 |
-| `--max-budget USD` | Cumulative CLI-reported cost budget per invocation | Unset |
 | `--model NAME` | Claude model override | Claude Code's configured default |
 | `--allowed-tool RULE` | Additional auto-approved tool rule; repeatable | No additional rules |
 
@@ -46,13 +45,11 @@ The runner stops on process failures, malformed output, permission denials, bloc
 
 Limits apply to one runner invocation. A new invocation starts new counters; Codex must still account for earlier calls when enforcing the overall task limits.
 
-## Budget accounting
+## Cost reporting
 
-`--max-budget` uses the CLI's `total_cost_usd` field. With a budget of USD 2, the first call receives `--max-budget-usd 2`. If it reports USD 0.60, the next call receives a remaining budget of USD 1.40. No further call starts once the reported budget is exhausted.
+The runner does not enforce a cost budget. Use `--max-turns` and `--timeout` as the enforced limits.
 
-When a budget is set, missing or invalid cost data stops the run. Acceptance commands' own costs are not included.
-
-This is not a hard billing cap or a measure of subscription quota. The runner currently adds costs reported by each call. The semantics of `total_cost_usd` after `--resume` have not been verified with a real model session: if the CLI reports cumulative session cost, this calculation may double-count usage and stop early. Provider accounting and actual billing may differ.
+Each Claude call's result JSON is saved in `attempt-N/claude.json`. `summary.json` also records `reported_costs_usd`, a list of the cost values reported by completed model calls, in attempt order. A value is `null` when the CLI did not report a usable number. These values are client-side estimates, not billing data: they may be missing, differ from the provider's invoice, and on a resumed session may already include earlier session spend. They are not aggregated into a total and are not a measure of subscription quota.
 
 ## Permissions
 
@@ -77,11 +74,20 @@ Each run includes:
 - `attempt-N/claude.json` and `claude.stderr`: executor output.
 - `attempt-N/report.json`: the parsed execution report, when valid.
 - `attempt-N/acceptance.stdout` and `acceptance.stderr`: validation output, when run.
-- `summary.json`: status, reason, attempts, session information, reported cost, and plan hash.
+- `summary.json`: status, reason, attempts, session information, per-attempt reported cost estimates, and plan hash.
 
 The Git baseline is not a complete backup of untracked file contents. Review new files separately and preserve any necessary originals before execution.
 
 Keep logs local unless you intend to share them; they can contain project content and diagnostic information.
+
+## Git artifact exclusion
+
+Before creating run artifacts, the runner adds local exclude entries to the plan repository's `.git/info/exclude` when Git is available:
+
+- for a plan in a `.plans/` directory, the `.plans/` directory;
+- for a plan elsewhere, the plan file and its `runs/` directory.
+
+This keeps clean-tree acceptance checks from seeing runner-owned files and keeps plans and logs out of commits. The runner does not modify tracked `.gitignore` files. If the exclude file cannot be written, it prints a warning and continues; a clean-tree check may then see those artifacts.
 
 ## Exit codes
 
@@ -102,9 +108,9 @@ A successful exit is not a substitute for the [review checklist](../plugins/code
 | The plan is rejected | Check for one complete, nonempty acceptance block and valid Bash syntax. |
 | The executor reports blocked or permission denied | Read its report and stderr; resolve the specific constraint before retrying. |
 | Acceptance fails | Read the acceptance logs and inspect the implementation against the plan. |
-| The run stops on budget or timeout | Inspect the summary and decide whether additional time or budget is authorized. |
+| The run stops on timeout | Inspect the summary and decide whether additional time is authorized. |
 | Checks pass but the task is incomplete | Have Codex review the completion criteria, revise the plan, and account for remaining task limits. |
 
 ## Validation status
 
-The runner and installer have been checked with isolated, offline tests. Real-model end-to-end validation and resumed-session cost semantics remain unverified.
+The runner and installer have been checked with isolated, offline tests. Real-model end-to-end validation remains unverified. Cost values are recorded as reported and are not aggregated or enforced.

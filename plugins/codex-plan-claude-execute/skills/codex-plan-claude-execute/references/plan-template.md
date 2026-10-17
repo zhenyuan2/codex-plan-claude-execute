@@ -11,7 +11,7 @@ Keep one effective plan; prior runs preserve snapshots. Scale detail to task com
 - Existing user changes to preserve: <baseline summary>
 - Authorized actions: <implementation and any explicitly authorized external actions>
 - Out of scope: <boundaries>
-- Limits: <total model calls across invocations, time, optional reported USD budget>
+- Limits: <total model calls across invocations and time; optional user cost guidance is not enforced by the runner>
 
 ## Tasks
 - <Expected change, relevant files, and observable completion criterion>

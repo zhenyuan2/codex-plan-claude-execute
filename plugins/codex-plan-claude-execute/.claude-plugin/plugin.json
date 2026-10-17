@@ -1,6 +1,6 @@
 {
   "name": "codex-plan-claude-execute",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "For Codex: plan tasks, delegate implementation to Claude Code, and independently verify results.",
   "skills": "./skills/",
   "license": "MIT",

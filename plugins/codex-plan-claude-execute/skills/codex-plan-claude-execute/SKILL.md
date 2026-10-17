@@ -27,9 +27,9 @@ bash "<skill_dir>/scripts/run-claude.sh" .plans/<slug>.md --repo /absolute/proje
 
 Default auto-approved tools are file tools; add only task-needed command rules using repeated `--allowed-tool 'Bash(...)'` options. Permissions also depend on Claude settings and the host environment. Tool rules and `acceptEdits` are not filesystem/network isolation. General interpreters and build tools can execute arbitrary code. Never automatically broaden permissions or use permission-bypass flags to repair a failure.
 
-`--attempts` limits model calls in one invocation. `--timeout` limits total model/acceptance runtime (default 1800 seconds). Optional `--max-budget USD` allocates the remaining reported budget to each call; it is not a billing guarantee and CLI/provider accounting may vary. Record all invocations toward the task budget. Do not start another invocation merely to reset exhausted limits.
+`--attempts` limits model calls in one invocation. `--timeout` limits total model/acceptance runtime (default 1800 seconds). The runner does not enforce a cost budget; per-call cost figures in the logs are client-side estimates that may be missing or session-cumulative. Track the plan's model-call and time limits across invocations, and do not start another invocation merely to reset exhausted limits.
 
-The runner snapshots the plan and acceptance, saves the Git baseline when available, and stores per-attempt logs under `.plans/runs/<unique-run>/`. It retries only after a completed executor report followed by failed acceptance. Process, protocol, permission, blocked/partial, and model-limit errors stop for Codex diagnosis. Do not edit implementation files concurrently with Claude.
+The runner snapshots the plan and acceptance, saves the Git baseline when available, and stores per-attempt logs under `.plans/runs/<unique-run>/`. It adds a local `.git/info/exclude` entry for the plan artifacts so clean-tree acceptance checks are not polluted. It retries only after a completed executor report followed by failed acceptance. Process, protocol, permission, blocked/partial, and model-limit errors stop for Codex diagnosis. Do not edit implementation files concurrently with Claude.
 
 Exit codes:
 - `0`: execution reported done and automated acceptance passed; Codex review is still pending.
