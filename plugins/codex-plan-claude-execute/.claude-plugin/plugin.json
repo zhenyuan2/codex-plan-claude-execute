@@ -1,0 +1,11 @@
+{
+  "name": "codex-plan-claude-execute",
+  "version": "0.2.0",
+  "description": "For Codex: plan tasks, delegate implementation to Claude Code, and independently verify results.",
+  "skills": "./skills/",
+  "license": "MIT",
+  "repository": "https://github.com/zhenyuan2/codex-plan-claude-execute",
+  "author": {
+    "name": "Zhen Yuan"
+  }
+}

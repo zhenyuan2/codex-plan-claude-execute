@@ -1,0 +1,13 @@
+{
+  "name": "codex-plan-claude-execute-marketplace",
+  "owner": {
+    "name": "zhenyuan2"
+  },
+  "plugins": [
+    {
+      "name": "codex-plan-claude-execute",
+      "source": "./plugins/codex-plan-claude-execute",
+      "description": "Codex plans, Claude Code implements, Codex verifies."
+    }
+  ]
+}
